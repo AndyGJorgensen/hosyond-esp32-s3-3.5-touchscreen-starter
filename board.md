@@ -39,6 +39,8 @@ Source: `ESP32-S3原理图.pdf` (3.5inch_ESP32-S3_board.SchDoc, 1/30/2026).
 | 40 | RGB_LED | WS2812B data |
 | 41 | LCD_BL | backlight, active HIGH (BSS138 low-side on LEDK) |
 | 42 | LCD_TE | panel tearing-effect output |
+| 43 | TXD0 | UART0 TX, header P2 (100R) |
+| 44 | RXD0 | UART0 RX, header P2 (100R) |
 | 45 | IO45 | free, header P3 |
 | 46 | IO46 | free, header P3 |
 | 47 | CTP_INT | touch interrupt |

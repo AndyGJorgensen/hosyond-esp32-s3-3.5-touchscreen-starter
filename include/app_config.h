@@ -33,7 +33,40 @@
 #define TOUCH_MIRROR_X  0    // set to 1 if touches register mirrored left/right (in portrait)
 #define TOUCH_MIRROR_Y  0    // set to 1 if touches register mirrored top/bottom (in portrait)
 
-// ---- Other peripherals ----
-#define AUDIO_EN_PIN  1    // SC8002B amplifier shutdown control
-#define RGB_LED_PIN   40   // WS2812B
-#define BAT_ADC_PIN   8
+// ---- Audio: ES8311 codec (I2C 0x18 on the shared bus) + SC8002B speaker amp + analog mic ----
+#define ES8311_I2C_ADDR 0x18
+#define I2S_PIN_MCK   17   // I2S_MCK -> ES8311 MCLK
+#define I2S_PIN_SCK   18   // I2S_SCK -> ES8311 SCLK (bit clock)
+#define I2S_PIN_LRC   21   // I2S_LRC -> ES8311 LRCK (word select)
+#define I2S_PIN_DO    16   // I2S_DO  -> ES8311 DSDIN (ESP32 -> speaker path)
+#define I2S_PIN_DI    15   // I2S_DI  <- ES8311 ASDOUT (mic -> ESP32)
+#define AUDIO_EN_PIN  1    // SC8002B amplifier shutdown control (speaker on JP3)
+
+// ---- microSD card (4-bit SDMMC, 10K pull-ups on board) ----
+#define SD_PIN_CLK    5
+#define SD_PIN_CMD    4
+#define SD_PIN_D0     6
+#define SD_PIN_D1     7
+#define SD_PIN_D2     2
+#define SD_PIN_D3     3
+
+// ---- RGB LED ----
+#define RGB_LED_PIN   40   // WS2812B data (single LED, powered from 5 V)
+
+// ---- Battery ----
+#define BAT_ADC_PIN   8    // battery voltage through 100K/100K divider
+#define BAT_ADC_RATIO 2.0f // multiply the ADC pin voltage by this to get battery voltage
+
+// ---- Buttons ----
+#define BOOT_BTN_PIN  0    // KEY2 (BOOT), active LOW, 10K pull-up; KEY1 is RESET (CHIP_PU, no GPIO)
+
+// ---- Headers ----
+#define EXT_IO45_PIN  45   // header P3 (IO45), free GPIO (strapping pin: leave floating/low at boot)
+#define EXT_IO46_PIN  46   // header P3 (IO46), free GPIO (strapping pin: leave floating/low at boot)
+#define UART0_TX_PIN  43   // header P2 (TXD0), via 100R
+#define UART0_RX_PIN  44   // header P2 (RXD0), via 100R
+// Header P4 (I2C) is the shared bus on I2C_PIN_SDA / I2C_PIN_SCL.
+
+// ---- Reserved by hardware (do not use) ----
+// GPIO19/20: native USB D-/D+ (USB-C, Serial when ARDUINO_USB_CDC_ON_BOOT=1)
+// GPIO26-32: external flash (FSPI); GPIO33-37: in-package octal PSRAM
