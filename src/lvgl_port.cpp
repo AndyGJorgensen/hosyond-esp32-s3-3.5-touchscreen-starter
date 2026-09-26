@@ -1,9 +1,10 @@
-#include "lvgl_display.h"
+#include "lvgl_port.h"
 #include <Arduino.h>
 #include <lvgl.h>
 #include <esp_heap_caps.h>
 #include "app_config.h"
 #include "lcd_st77922.h"
+#include "touch_st77922.h"
 
 static uint16_t *s_rot_buf;  // PSRAM scratch for software rotation
 
@@ -53,5 +54,25 @@ bool lvgl_display_init() {
   lv_display_set_flush_cb(disp, flush_cb);
   lv_display_add_event_cb(disp, rounder_cb, LV_EVENT_INVALIDATE_AREA, NULL);
 
+  return true;
+}
+
+// Touch points are native portrait; LVGL rotates them to match the display rotation
+static void touch_read_cb(lv_indev_t *indev, lv_indev_data_t *data) {
+  int16_t x, y;
+  if (touch_read(&x, &y)) {
+    data->point.x = x;
+    data->point.y = y;
+    data->state = LV_INDEV_STATE_PRESSED;
+  } else {
+    data->state = LV_INDEV_STATE_RELEASED;
+  }
+}
+
+bool lvgl_touch_init() {
+  if (!touch_init()) return false;
+  lv_indev_t *indev = lv_indev_create();
+  lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+  lv_indev_set_read_cb(indev, touch_read_cb);
   return true;
 }

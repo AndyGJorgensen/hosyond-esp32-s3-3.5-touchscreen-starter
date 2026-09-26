@@ -48,7 +48,7 @@ Source: `ESP32-S3原理图.pdf` (3.5inch_ESP32-S3_board.SchDoc, 1/30/2026).
 - Panel: HMX035CTFT-001, 3.5", driven over **4-line QSPI** (no D/C pin). The LCD RESET line is tied to the ESP32 chip reset.
 - Controller: **Sitronix ST77922** TDDI (display + touch in one chip), per `datasheets/`. Native 320×480 assumed.
 - QSPI framing: opcode `0x02` + 24-bit address `00 <cmd> 00` for commands (1 line); opcode `0x32` + `00 2C 00` for pixels (data on 4 lines). RGB565 is big-endian.
-- TFT_eSPI does not support this panel. The project uses its own driver in `src/lcd_st77922.cpp` (IDF spi_master). The LVGL glue (rotation, 4-px rounding, flush) is in `src/lvgl_display.cpp`.
+- TFT_eSPI does not support this panel. The project uses its own driver in `src/lcd_st77922.cpp` (IDF spi_master). The LVGL glue (rotation, 4-px rounding, flush) is in `src/lvgl_port.cpp`.
 - Espressif's `esp_lcd_st77922` default init sequence is for a 532×300 panel. Don't reuse its power/gamma values here.
 - Board is the **LCDwiki ES3C35P** (https://www.lcdwiki.com/3.5inch_ESP32-S3_Display). The vendor examples are mirrored at https://github.com/ydedox/st77922. `Example_01_Simple_test/Simple_test.ino` holds the full vendor init table, which the panel needs (it stays black with only SLPOUT/DISPON). Background: https://github.com/espressif/arduino-esp32/issues/12694
 - The vendor table ends with INVON (0x21), COLMOD 0x01, MADCTL 0x00, TEON 0x01.
@@ -59,7 +59,12 @@ Source: `ESP32-S3原理图.pdf` (3.5inch_ESP32-S3_board.SchDoc, 1/30/2026).
 - Orientation: `LCD_ROTATION 3` (LVGL 270°) with `LCD_MADCTL 0x00` gives the correct upright landscape. `1` is upside down. The vendor's MADCTL `0x44` flips the landscape image top-to-bottom.
 - **Command framing must match the vendor exactly:** set cmd/addr widths per transaction (`spi_transaction_ext_t` + `SPI_TRANS_VARIABLE_CMD|ADDR`) and send params from a RAM buffer. With device-level `command_bits/address_bits` and `SPI_TRANS_USE_TXDATA`, the panel stays black after a hard reset. It only *seemed* to work while a previous vendor init was still latched in the panel.
 - Testing tip: a USB soft reset/upload doesn't reset the panel (the old init stays latched). Press the board's RESET button (CHIP_PU) to test a true cold init.
-- Touch: ST77922 TDDI touch over I2C at 0x55 (datasheet `ST77922 TDDI Interface Protocol`). An FT6336G datasheet is also in the folder, so the touch chip is unconfirmed.
+- **Touch: confirmed ST77922 TDDI touch over I2C at 0x55** (the FT6336G datasheet in `datasheets/` does not apply). Driver: `src/touch_st77922.cpp`, following the vendor `Example_08_LVGL_Demos/esp_lcd_st77922.c`.
+  - Registers are 16-bit big-endian (write 2 address bytes, repeated start, read).
+  - Reset: TP_RST (GPIO48) low 100 ms, then high 100 ms. Done after display init, as the vendor does.
+  - `0x0000` fw version, `0x0005..0x0009` max X/Y and max touches, `0x0010` status (bit3 = coordinates available), `0x0009` report count, `0x0014` reports (7 bytes each: b0 bit7 valid, x = (b0&0x3F)<<8|b1, y = b2<<8|b3, b4 area, b5 intensity).
+  - Coordinates are native portrait 320×480 and match the display with MADCTL 0x00. LVGL 9 rotates pointer input itself (`lv_display_rotate_point`), so the driver passes native coordinates.
+  - Polled on every LVGL indev read. INT (GPIO47) is configured as an input but not used yet.
 - Flash confirmed 16 MB (esptool: manufacturer 0x5E, device 0x4018).
 
 ## Audio

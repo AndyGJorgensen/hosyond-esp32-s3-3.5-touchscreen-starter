@@ -83,10 +83,22 @@ void create_screen_main() {
         {
             lv_obj_t *obj = lv_msgbox_create(parent_obj);
             objects.obj1 = obj;
-            lv_obj_set_pos(obj, -9, -29);
+            lv_obj_set_pos(obj, 366, 195);
             lv_obj_set_size(obj, 59, 92);
             lv_obj_set_style_align(obj, LV_ALIGN_DEFAULT, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_bg_color(obj, lv_color_hex(0xeae814), LV_PART_MAIN | LV_STATE_DEFAULT);
+        }
+        {
+            lv_obj_t *obj = lv_arc_create(parent_obj);
+            lv_obj_set_pos(obj, 304, 18);
+            lv_obj_set_size(obj, 150, 150);
+            lv_arc_set_value(obj, 25);
+        }
+        {
+            lv_obj_t *obj = lv_slider_create(parent_obj);
+            lv_obj_set_pos(obj, 25, 190);
+            lv_obj_set_size(obj, 279, 10);
+            lv_slider_set_value(obj, 25, LV_ANIM_OFF);
         }
     }
     

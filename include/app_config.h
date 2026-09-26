@@ -27,6 +27,12 @@
 #define TP_PIN_INT    47
 #define TP_PIN_RST    48
 
+// ---- Touch (reported in native portrait coordinates; LVGL applies LCD_ROTATION) ----
+#define TOUCH_I2C_ADDR  0x55
+#define TOUCH_I2C_HZ    400000
+#define TOUCH_MIRROR_X  0    // set to 1 if touches register mirrored left/right (in portrait)
+#define TOUCH_MIRROR_Y  0    // set to 1 if touches register mirrored top/bottom (in portrait)
+
 // ---- Other peripherals ----
 #define AUDIO_EN_PIN  1    // SC8002B amplifier shutdown control
 #define RGB_LED_PIN   40   // WS2812B
