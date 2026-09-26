@@ -33,6 +33,16 @@
 #define TOUCH_MIRROR_X  0    // set to 1 if touches register mirrored left/right (in portrait)
 #define TOUCH_MIRROR_Y  0    // set to 1 if touches register mirrored top/bottom (in portrait)
 
+// ---- WiFi ----
+#define WIFI_HOSTNAME             "esp32-display"  // DHCP/mDNS host name shown on the WiFi screen
+#define WIFI_SAVED_MAX            3                // saved networks (matches the WifiSaved screen rows)
+#define WIFI_CONNECT_TIMEOUT_MS   15000            // give up on a connection attempt after this long
+#define WIFI_SCAN_TIMEOUT_MS      15000            // give up on a scan after this long (a full scan takes ~6.4 s)
+#define WIFI_AUTOCONNECT_AT_BOOT  1                // 1 = try saved networks (most recent first) at boot
+
+// ---- OTA (placeholder, not implemented yet) ----
+#define OTA_ENABLED_DEFAULT       0                // OTA switch state at boot
+
 // ---- Audio: ES8311 codec (I2C 0x18 on the shared bus) + SC8002B speaker amp + analog mic ----
 #define ES8311_I2C_ADDR 0x18
 #define I2S_PIN_MCK   17   // I2S_MCK -> ES8311 MCLK

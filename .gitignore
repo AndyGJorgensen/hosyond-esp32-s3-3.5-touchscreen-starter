@@ -3,3 +3,8 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+
+# EEZ edit scripts and .eez-project backups (local working state)
+tmp/
+*.eez-project.bak*
+*.eez-project-ui-state

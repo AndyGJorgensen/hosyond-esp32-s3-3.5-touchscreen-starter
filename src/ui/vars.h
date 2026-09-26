@@ -18,6 +18,27 @@ enum FlowGlobalVariables {
 
 // Native global variables
 
+extern const char *get_var_wifi_status();
+extern void set_var_wifi_status(const char *value);
+extern const char *get_var_wifi_ssid();
+extern void set_var_wifi_ssid(const char *value);
+extern const char *get_var_wifi_ip();
+extern void set_var_wifi_ip(const char *value);
+extern const char *get_var_wifi_hostname();
+extern void set_var_wifi_hostname(const char *value);
+extern const char *get_var_wifi_rssi();
+extern void set_var_wifi_rssi(const char *value);
+extern const char *get_var_wifi_mac();
+extern void set_var_wifi_mac(const char *value);
+extern const char *get_var_ota_status();
+extern void set_var_ota_status(const char *value);
+extern const char *get_var_saved_wifi_1();
+extern void set_var_saved_wifi_1(const char *value);
+extern const char *get_var_saved_wifi_2();
+extern void set_var_saved_wifi_2(const char *value);
+extern const char *get_var_saved_wifi_3();
+extern void set_var_saved_wifi_3(const char *value);
+
 #ifdef __cplusplus
 }
 #endif

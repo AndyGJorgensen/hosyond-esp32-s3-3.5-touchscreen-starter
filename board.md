@@ -77,3 +77,7 @@ Source: `ESP32-S3原理图.pdf` (3.5inch_ESP32-S3_board.SchDoc, 1/30/2026).
 ## Power
 - TP4054 Li-ion charger from VBUS; battery connector JP1.
 - ME6217C33 3.3 V LDO.
+
+## WiFi
+- A full async scan (`WiFi.scanNetworks(true)`) takes about **6.4 s** on this board. That's measured by timestamping `ARDUINO_EVENT_WIFI_SCAN_DONE`.
+- Arduino core 2.0.17 gives up on an async scan after `max_ms_per_chan × 20` = 6 s, so `scanComplete()` returns `WIFI_SCAN_FAILED` about 0.4 s before the results arrive. `src/wifi_manager.cpp` ignores that early FAILED and waits up to `WIFI_SCAN_TIMEOUT_MS`. When SCAN_DONE arrives the core resets its timer and `scanComplete()` returns the real count.
