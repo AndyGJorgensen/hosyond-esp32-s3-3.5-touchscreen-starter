@@ -1,0 +1,70 @@
+# Board notes: 3.5" ESP32-S3 all-in-one display board
+
+Source: `ESP32-S3原理图.pdf` (3.5inch_ESP32-S3_board.SchDoc, 1/30/2026).
+
+## Core
+- MCU: ESP32-S3R8 (bare chip, 8 MB octal PSRAM in-package; GPIO33–37 used by PSRAM, not available).
+- External flash on FSPI pins (GPIO27–32). The symbol reads W25X40; the actual size is unconfirmed.
+- 40 MHz crystal. PCB antenna (J1 SMD_ANT).
+- USB-C goes to **native USB** (GPIO19 D-, GPIO20 D+), not a USB-UART bridge. `Serial` needs `-DARDUINO_USB_CDC_ON_BOOT=1`.
+- UART0 (TXD0/RXD0) is on header P2.
+- Buttons: KEY1 = RESET (CHIP_PU), KEY2 = BOOT (GPIO0).
+
+## GPIO map
+| GPIO | Net | Notes |
+|---|---|---|
+| 0 | IO0 | BOOT button |
+| 1 | AUDIO_EN | SC8002B amp shutdown |
+| 2 | SD_D2 | microSD (4-bit SDMMC) |
+| 3 | SD_D3 | microSD |
+| 4 | SD_CMD | microSD |
+| 5 | SD_CLK | microSD |
+| 6 | SD_D0 | microSD |
+| 7 | SD_D1 | microSD |
+| 8 | BAT_ADC | battery voltage via 100K/100K divider (×2) |
+| 9 | LCD_SDA3 | QSPI D3 |
+| 10 | LCD_CS | QSPI CS |
+| 11 | LCD_SDA0 | QSPI D0 |
+| 12 | LCD_SCK | QSPI CLK |
+| 13 | LCD_SDA1 | QSPI D1 |
+| 14 | LCD_SDA2 | QSPI D2 |
+| 15 | I2S_DI | ES8311 ASDOUT |
+| 16 | I2S_DO | ES8311 DSDIN |
+| 17 | I2S_MCK | ES8311 MCLK |
+| 18 | I2S_SCK | ES8311 SCLK |
+| 19/20 | USB D-/D+ | native USB |
+| 21 | I2S_LRC | ES8311 LRCK |
+| 38 | IIC_SDA | shared: touch + ES8311 + header P4 |
+| 39 | IIC_SCL | shared: touch + ES8311 + header P4 |
+| 40 | RGB_LED | WS2812B data |
+| 41 | LCD_BL | backlight, active HIGH (BSS138 low-side on LEDK) |
+| 42 | LCD_TE | panel tearing-effect output |
+| 45 | IO45 | free, header P3 |
+| 46 | IO46 | free, header P3 |
+| 47 | CTP_INT | touch interrupt |
+| 48 | CTP_RST | touch reset |
+
+## Display
+- Panel: HMX035CTFT-001, 3.5", driven over **4-line QSPI** (no D/C pin). The LCD RESET line is tied to the ESP32 chip reset.
+- Controller: **Sitronix ST77922** TDDI (display + touch in one chip), per `datasheets/`. Native 320×480 assumed.
+- QSPI framing: opcode `0x02` + 24-bit address `00 <cmd> 00` for commands (1 line); opcode `0x32` + `00 2C 00` for pixels (data on 4 lines). RGB565 is big-endian.
+- TFT_eSPI does not support this panel. The project uses its own driver in `src/lcd_st77922.cpp` (IDF spi_master).
+- Espressif's `esp_lcd_st77922` default init sequence is for a 532×300 panel. Don't reuse its power/gamma values here.
+- Board is the **LCDwiki ES3C35P** (https://www.lcdwiki.com/3.5inch_ESP32-S3_Display). The vendor examples are mirrored at https://github.com/ydedox/st77922. `Example_01_Simple_test/Simple_test.ino` holds the full vendor init table, which the panel needs (it stays black with only SLPOUT/DISPON). Background: https://github.com/espressif/arduino-esp32/issues/12694
+- The vendor table ends with INVON (0x21), COLMOD 0x01, MADCTL 0x00, TEON 0x01.
+- **Window column start and width must be multiples of 4** (vendor rounds `sx`, `w`; ESPHome uses `draw_rounding: 4`).
+- **No MV (axis swap) bit in MADCTL** (bits: D7 MY, D6 MX, D4 ML, D3 RGB, D2 MH). Landscape has to be a software rotation in LVGL.
+- **LCD reset is tied to CHIP_PU.** A USB-JTAG reset (esptool hard reset, `esp_restart`, OTA) does not reset the panel. When coming from other firmware, SWRESET alone may not bring it back and the screen stays black. Unplug USB for about 10 s after flashing new firmware.
+- **Pixel writes must use opcode `0x32` + address `0x3C` (RAMWRC)**, as the vendor driver does. With `0x2C` (RAMWR) the panel stays black, even though the datasheet suggests either should work. Confirmed on hardware.
+- Orientation: `LCD_ROTATION 3` (LVGL 270°) gives the correct upright landscape. `1` is upside down.
+- Touch: ST77922 TDDI touch over I2C at 0x55 (datasheet `ST77922 TDDI Interface Protocol`). An FT6336G datasheet is also in the folder, so the touch chip is unconfirmed.
+- Flash confirmed 16 MB (esptool: manufacturer 0x5E, device 0x4018).
+
+## Audio
+- ES8311 codec (I2C + I2S), powered from its own 3.3 V LDO.
+- SC8002B speaker amp, enabled by AUDIO_EN (GPIO1). Speaker on JP3.
+- LMA2718B381 analog mic into the ES8311 MIC1.
+
+## Power
+- TP4054 Li-ion charger from VBUS; battery connector JP1.
+- ME6217C33 3.3 V LDO.
