@@ -190,6 +190,14 @@
         "defaultValue": "\"\"",
         "persistent": false,
         "native": true
+      },
+      {
+        "objID": "25d4c240-f5aa-263e-986c-764c8535750c",
+        "name": "wifi_connected",
+        "type": "boolean",
+        "defaultValue": "false",
+        "persistent": false,
+        "native": true
       }
     ],
     "structures": [],
@@ -1224,7 +1232,7 @@
                 }
               ],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_ON_FOCUS|SCROLL_WITH_ARROW|SNAPPABLE",
-              "hiddenFlagType": "literal",
+              "hiddenFlagType": "expression",
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
               "flagScrollDirection": "",
@@ -1238,13 +1246,14 @@
               },
               "group": "",
               "groupIndex": 0,
-              "clickableFlag": true
+              "clickableFlag": true,
+              "hiddenFlag": "wifi_connected"
             },
             {
               "objID": "c9ca8d50-c17c-eba8-305f-a13ffd7ff4d1",
               "type": "LVGLButtonWidget",
-              "left": 8,
-              "top": 170,
+              "left": 126,
+              "top": 122,
               "width": 110,
               "height": 40,
               "customInputs": [],
@@ -1322,7 +1331,7 @@
                 }
               ],
               "widgetFlags": "CLICK_FOCUSABLE|GESTURE_BUBBLE|PRESS_LOCK|SCROLL_CHAIN_HOR|SCROLL_CHAIN_VER|SCROLL_ELASTIC|SCROLL_MOMENTUM|SCROLL_ON_FOCUS|SCROLL_WITH_ARROW|SNAPPABLE",
-              "hiddenFlagType": "literal",
+              "hiddenFlagType": "expression",
               "clickableFlagType": "literal",
               "flagScrollbarMode": "",
               "flagScrollDirection": "",
@@ -1336,7 +1345,8 @@
               },
               "group": "",
               "groupIndex": 0,
-              "clickableFlag": true
+              "clickableFlag": true,
+              "hiddenFlag": "!wifi_connected"
             },
             {
               "objID": "7eeda82a-df84-303c-3351-8f3bb6ffed5b",
@@ -2041,8 +2051,8 @@
             {
               "objID": "8911561e-15f8-82cd-9a4e-51928d1aa6fd",
               "type": "LVGLButtonWidget",
-              "left": 248,
-              "top": 178,
+              "left": 8,
+              "top": 170,
               "width": 110,
               "height": 40,
               "customInputs": [],

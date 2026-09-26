@@ -40,8 +40,10 @@
 #define WIFI_SCAN_TIMEOUT_MS      15000            // give up on a scan after this long (a full scan takes ~6.4 s)
 #define WIFI_AUTOCONNECT_AT_BOOT  1                // 1 = try saved networks (most recent first) at boot
 
-// ---- OTA (placeholder, not implemented yet) ----
-#define OTA_ENABLED_DEFAULT       0                // OTA switch state at boot
+// ---- OTA (ArduinoOTA over WiFi; host name is WIFI_HOSTNAME) ----
+#define OTA_ENABLED_DEFAULT       1                // OTA switch state at boot (1: OTA is the default upload path)
+#define OTA_PORT                  3232             // also in platformio.ini [env:ota] upload_flags --port
+#define OTA_PASSWORD              "esp32ota"       // also in platformio.ini [env:ota] upload_flags --auth. Change both
 
 // ---- Audio: ES8311 codec (I2C 0x18 on the shared bus) + SC8002B speaker amp + analog mic ----
 #define ES8311_I2C_ADDR 0x18

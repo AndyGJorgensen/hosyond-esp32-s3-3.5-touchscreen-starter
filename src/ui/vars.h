@@ -38,6 +38,8 @@ extern const char *get_var_saved_wifi_2();
 extern void set_var_saved_wifi_2(const char *value);
 extern const char *get_var_saved_wifi_3();
 extern void set_var_saved_wifi_3(const char *value);
+extern bool get_var_wifi_connected();
+extern void set_var_wifi_connected(bool value);
 
 #ifdef __cplusplus
 }

@@ -381,7 +381,7 @@ void create_screen_wifi() {
         {
             lv_obj_t *obj = lv_button_create(parent_obj);
             objects.obj4 = obj;
-            lv_obj_set_pos(obj, 8, 170);
+            lv_obj_set_pos(obj, 126, 122);
             lv_obj_set_size(obj, 110, 40);
             lv_obj_add_event_cb(obj, event_handler_cb_wifi_obj4, LV_EVENT_ALL, flowState);
             {
@@ -510,7 +510,7 @@ void create_screen_wifi() {
         {
             lv_obj_t *obj = lv_button_create(parent_obj);
             objects.obj5 = obj;
-            lv_obj_set_pos(obj, 248, 178);
+            lv_obj_set_pos(obj, 8, 170);
             lv_obj_set_size(obj, 110, 40);
             lv_obj_add_event_cb(obj, event_handler_cb_wifi_obj5, LV_EVENT_ALL, flowState);
             {
@@ -564,6 +564,32 @@ void create_screen_wifi() {
 void tick_screen_wifi() {
     void *flowState = getFlowState(0, 1);
     (void)flowState;
+    {
+        bool new_val = evalBooleanProperty(flowState, 6, 3, "Failed to evaluate Hidden flag");
+        bool cur_val = lv_obj_has_flag(objects.obj3, LV_OBJ_FLAG_HIDDEN);
+        if (new_val != cur_val) {
+            tick_value_change_obj = objects.obj3;
+            if (new_val) {
+                lv_obj_add_flag(objects.obj3, LV_OBJ_FLAG_HIDDEN);
+            } else {
+                lv_obj_remove_flag(objects.obj3, LV_OBJ_FLAG_HIDDEN);
+            }
+            tick_value_change_obj = NULL;
+        }
+    }
+    {
+        bool new_val = evalBooleanProperty(flowState, 8, 3, "Failed to evaluate Hidden flag");
+        bool cur_val = lv_obj_has_flag(objects.obj4, LV_OBJ_FLAG_HIDDEN);
+        if (new_val != cur_val) {
+            tick_value_change_obj = objects.obj4;
+            if (new_val) {
+                lv_obj_add_flag(objects.obj4, LV_OBJ_FLAG_HIDDEN);
+            } else {
+                lv_obj_remove_flag(objects.obj4, LV_OBJ_FLAG_HIDDEN);
+            }
+            tick_value_change_obj = NULL;
+        }
+    }
     {
         const char *new_val = evalTextProperty(flowState, 13, 3, "Failed to evaluate Text in Label widget");
         const char *cur_val = lv_label_get_text(objects.obj7);

@@ -13,6 +13,7 @@ void wifi_disconnect();
 void wifi_forget(int index);
 
 const String &wifi_saved_ssid(int index);          // "" when the slot is empty
+bool wifi_is_connected();
 const char *wifi_status_text();
 String wifi_ssid_text();
 String wifi_ip_text();

@@ -1,9 +1,10 @@
-// Native actions and variables for the Wifi / WifiSaved EEZ screens.
+// Native actions and variables for the Wifi / WifiSaved EEZ screens (WiFi + OTA).
 // Only content, state and flags are changed on objects.* here; layout stays in the .eez-project.
 #include "wifi_gui.h"
 #include <lvgl.h>
 #include "app_config.h"
 #include "wifi_manager.h"
+#include "ota_manager.h"
 #include "ui/ui.h"
 #include "ui/screens.h"
 #include "ui/actions.h"
@@ -12,7 +13,6 @@
 // Buffers returned by the native variable getters (EEZ flow reads them every tick)
 static char s_status[40], s_ssid[40], s_ip[20], s_rssi[16], s_mac[20], s_ota[24];
 static char s_saved[WIFI_SAVED_MAX][40];
-static bool s_ota_enabled = OTA_ENABLED_DEFAULT;
 
 static void copy(char *dst, size_t n, const String &src) { strlcpy(dst, src.c_str(), n); }
 
@@ -22,21 +22,31 @@ static void refresh_values() {
   copy(s_ip, sizeof(s_ip), wifi_ip_text());
   copy(s_rssi, sizeof(s_rssi), wifi_rssi_text());
   copy(s_mac, sizeof(s_mac), wifi_mac_text());
-  strlcpy(s_ota, s_ota_enabled ? "On (not implemented)" : "Off", sizeof(s_ota));
+  strlcpy(s_ota, ota_status_text(), sizeof(s_ota));
   for (int i = 0; i < WIFI_SAVED_MAX; i++) {
     const String &ssid = wifi_saved_ssid(i);
     copy(s_saved[i], sizeof(s_saved[i]), ssid.length() ? ssid : String("(empty)"));
   }
 }
 
+// An OTA update blocks loop(); keep the screen alive so the OTA row shows progress
+static void ota_progress() {
+  refresh_values();
+  ui_tick();
+  lv_timer_handler();
+}
+
 void wifi_gui_init() {
   wifi_init();
-  if (s_ota_enabled && objects.ota_switch) lv_obj_add_state(objects.ota_switch, LV_STATE_CHECKED);
+  ota_set_enabled(OTA_ENABLED_DEFAULT);
+  ota_set_progress_hook(ota_progress);
+  if (OTA_ENABLED_DEFAULT && objects.ota_switch) lv_obj_add_state(objects.ota_switch, LV_STATE_CHECKED);
   refresh_values();
 }
 
 void wifi_gui_loop() {
   wifi_loop();
+  ota_loop();
 
   String options;
   if (wifi_scan_take(options) && objects.wifi_network) {
@@ -78,8 +88,7 @@ void action_wifi_connect(lv_event_t *e) {
 void action_wifi_disconnect(lv_event_t *e) { wifi_disconnect(); }
 
 void action_ota_toggle(lv_event_t *e) {
-  // Placeholder: only records the switch state; OTA itself is not implemented yet
-  s_ota_enabled = lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED);
+  ota_set_enabled(lv_obj_has_state((lv_obj_t *)lv_event_get_target(e), LV_STATE_CHECKED));
 }
 
 void action_wifi_pw_open(lv_event_t *e) {
@@ -100,6 +109,8 @@ void action_saved_forget(lv_event_t *e) { wifi_forget(user_data(e)); }
 
 // ---- Native variables (read-only from the UI; setters are unused) ----
 
+bool get_var_wifi_connected() { return wifi_is_connected(); }  // swaps Connect/Disconnect
+void set_var_wifi_connected(bool) {}
 const char *get_var_wifi_status() { return s_status; }
 void set_var_wifi_status(const char *) {}
 const char *get_var_wifi_ssid() { return s_ssid; }

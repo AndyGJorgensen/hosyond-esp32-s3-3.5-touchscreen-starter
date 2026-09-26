@@ -172,6 +172,8 @@ const String &wifi_saved_ssid(int index) {
   return (index >= 0 && index < WIFI_SAVED_MAX) ? s_ssid[index] : s_empty;
 }
 
+bool wifi_is_connected() { return WiFi.isConnected(); }
+
 const char *wifi_status_text() {
   switch (s_state) {
     case SCANNING:   return "Scanning...";
