@@ -48,15 +48,17 @@ Source: `ESP32-S3原理图.pdf` (3.5inch_ESP32-S3_board.SchDoc, 1/30/2026).
 - Panel: HMX035CTFT-001, 3.5", driven over **4-line QSPI** (no D/C pin). The LCD RESET line is tied to the ESP32 chip reset.
 - Controller: **Sitronix ST77922** TDDI (display + touch in one chip), per `datasheets/`. Native 320×480 assumed.
 - QSPI framing: opcode `0x02` + 24-bit address `00 <cmd> 00` for commands (1 line); opcode `0x32` + `00 2C 00` for pixels (data on 4 lines). RGB565 is big-endian.
-- TFT_eSPI does not support this panel. The project uses its own driver in `src/lcd_st77922.cpp` (IDF spi_master).
+- TFT_eSPI does not support this panel. The project uses its own driver in `src/lcd_st77922.cpp` (IDF spi_master). The LVGL glue (rotation, 4-px rounding, flush) is in `src/lvgl_display.cpp`.
 - Espressif's `esp_lcd_st77922` default init sequence is for a 532×300 panel. Don't reuse its power/gamma values here.
 - Board is the **LCDwiki ES3C35P** (https://www.lcdwiki.com/3.5inch_ESP32-S3_Display). The vendor examples are mirrored at https://github.com/ydedox/st77922. `Example_01_Simple_test/Simple_test.ino` holds the full vendor init table, which the panel needs (it stays black with only SLPOUT/DISPON). Background: https://github.com/espressif/arduino-esp32/issues/12694
 - The vendor table ends with INVON (0x21), COLMOD 0x01, MADCTL 0x00, TEON 0x01.
 - **Window column start and width must be multiples of 4** (vendor rounds `sx`, `w`; ESPHome uses `draw_rounding: 4`).
 - **No MV (axis swap) bit in MADCTL** (bits: D7 MY, D6 MX, D4 ML, D3 RGB, D2 MH). Landscape has to be a software rotation in LVGL.
-- **LCD reset is tied to CHIP_PU.** A USB-JTAG reset (esptool hard reset, `esp_restart`, OTA) does not reset the panel. When coming from other firmware, SWRESET alone may not bring it back and the screen stays black. Unplug USB for about 10 s after flashing new firmware.
+- **LCD reset is tied to CHIP_PU.** A USB-JTAG reset (esptool hard reset, `esp_restart`, OTA) does not reset the panel. This project's init works from a hard reset, so no power-cycle is needed after flashing. Just be aware that a soft reset can hide init bugs (see the command framing note below).
 - **Pixel writes must use opcode `0x32` + address `0x3C` (RAMWRC)**, as the vendor driver does. With `0x2C` (RAMWR) the panel stays black, even though the datasheet suggests either should work. Confirmed on hardware.
-- Orientation: `LCD_ROTATION 3` (LVGL 270°) gives the correct upright landscape. `1` is upside down.
+- Orientation: `LCD_ROTATION 3` (LVGL 270°) with `LCD_MADCTL 0x00` gives the correct upright landscape. `1` is upside down. The vendor's MADCTL `0x44` flips the landscape image top-to-bottom.
+- **Command framing must match the vendor exactly:** set cmd/addr widths per transaction (`spi_transaction_ext_t` + `SPI_TRANS_VARIABLE_CMD|ADDR`) and send params from a RAM buffer. With device-level `command_bits/address_bits` and `SPI_TRANS_USE_TXDATA`, the panel stays black after a hard reset. It only *seemed* to work while a previous vendor init was still latched in the panel.
+- Testing tip: a USB soft reset/upload doesn't reset the panel (the old init stays latched). Press the board's RESET button (CHIP_PU) to test a true cold init.
 - Touch: ST77922 TDDI touch over I2C at 0x55 (datasheet `ST77922 TDDI Interface Protocol`). An FT6336G datasheet is also in the folder, so the touch chip is unconfirmed.
 - Flash confirmed 16 MB (esptool: manufacturer 0x5E, device 0x4018).
 

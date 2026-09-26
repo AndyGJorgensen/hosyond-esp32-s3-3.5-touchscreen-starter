@@ -87,20 +87,21 @@ static const init_cmd_t k_init[] = {
 
 static spi_device_handle_t s_dev;
 static uint16_t *s_bounce;  // internal DMA buffer, LCD_CHUNK_BYTES
+alignas(4) static uint8_t s_param[32];  // RAM copy of command params (longest init entry is 16 bytes)
 
+// Must match the vendor framing exactly: per-transaction cmd/addr widths and params sent from a
+// RAM buffer. Device-level widths + SPI_TRANS_USE_TXDATA leave the panel black after a hard reset.
 static void write_cmd(uint8_t cmd, const uint8_t *data, size_t len) {
-  spi_transaction_t t;
-  memset(&t, 0, sizeof(t));
-  t.cmd = OP_WRITE_CMD;
-  t.addr = (uint32_t)cmd << 8;
-  t.length = len * 8;
-  if (len <= 4) {
-    t.flags = SPI_TRANS_USE_TXDATA;
-    if (len) memcpy(t.tx_data, data, len);
-  } else {
-    t.tx_buffer = data;
-  }
-  spi_device_polling_transmit(s_dev, &t);
+  spi_transaction_ext_t e;
+  memset(&e, 0, sizeof(e));
+  e.base.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;
+  e.command_bits = 8;
+  e.address_bits = 24;
+  e.base.cmd = OP_WRITE_CMD;
+  e.base.addr = (uint32_t)cmd << 8;
+  e.base.length = len * 8;
+  if (len) { memcpy(s_param, data, len); e.base.tx_buffer = s_param; }
+  spi_device_polling_transmit(s_dev, (spi_transaction_t *)&e);
 }
 
 static void set_window(int x1, int y1, int x2, int y2) {
@@ -111,14 +112,16 @@ static void set_window(int x1, int y1, int x2, int y2) {
 }
 
 static void write_pixels(const uint16_t *px, size_t bytes) {
-  spi_transaction_t t;
-  memset(&t, 0, sizeof(t));
-  t.cmd = OP_WRITE_COLOR;
-  t.addr = 0x3C << 8;            // RAMWRC, as the vendor driver does (RAMWR 0x2C leaves the panel black)
-  t.length = bytes * 8;
-  t.tx_buffer = px;
-  t.flags = SPI_TRANS_MODE_QIO;  // opcode + address on 1 line, data on 4
-  spi_device_polling_transmit(s_dev, &t);
+  spi_transaction_ext_t e;
+  memset(&e, 0, sizeof(e));
+  e.base.flags = SPI_TRANS_MODE_QIO | SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;  // data on 4 lines
+  e.command_bits = 8;
+  e.address_bits = 24;
+  e.base.cmd = OP_WRITE_COLOR;
+  e.base.addr = 0x3C << 8;  // RAMWRC, as the vendor driver does (RAMWR 0x2C leaves the panel black)
+  e.base.length = bytes * 8;
+  e.base.tx_buffer = px;
+  spi_device_polling_transmit(s_dev, (spi_transaction_t *)&e);
 }
 
 bool lcd_init() {
@@ -135,9 +138,8 @@ bool lcd_init() {
   bus.flags = SPICOMMON_BUSFLAG_MASTER | SPICOMMON_BUSFLAG_IOMUX_PINS | SPICOMMON_BUSFLAG_QUAD;
   if (spi_bus_initialize(SPI2_HOST, &bus, SPI_DMA_CH_AUTO) != ESP_OK) return false;
 
+  // Command/address widths are set per transaction (see write_cmd)
   spi_device_interface_config_t dev = {};
-  dev.command_bits = 8;
-  dev.address_bits = 24;
   dev.mode = 0;
   dev.clock_speed_hz = LCD_SPI_HZ;
   dev.spics_io_num = LCD_PIN_CS;
