@@ -1,10 +1,12 @@
-# ES3C35P EEZ Studio base: 3.5" ESP32-S3 touch display
+# Hosyond ESP32-S3 3.5" touchscreen starter (EEZ Studio + LVGL)
 
-A starting point for building [EEZ Studio](https://www.envox.eu/studio/studio-introduction/) LVGL user interfaces on the **LCDwiki ES3C35P**. This is the 3.5" ESP32-S3 all-in-one touch display, also sold under the Hosyond brand. Board page: [lcdwiki.com/3.5inch_ESP32-S3_Display](https://www.lcdwiki.com/3.5inch_ESP32-S3_Display).
+A starting point for building [EEZ Studio](https://www.envox.eu/studio/studio-introduction/) LVGL user interfaces on the **Hosyond ESP32-S3 3.5" touchscreen module**, also sold as the **LCDwiki ES3C35P**. Board page: [lcdwiki.com/3.5inch_ESP32-S3_Display](https://www.lcdwiki.com/3.5inch_ESP32-S3_Display).
+
+> **Resolution:** the Amazon listing says "240x320", but the panel is really **320x480** (ST77922). This project uses it as 480x320 landscape.
 
 ![Main screen: a dashboard card for each board feature](docs/main_screen.png)
 
-The display and touch drivers work. LVGL 9.5 is wired to EEZ Studio's flow runtime. You also get WiFi screens with saved networks, and over-the-air (OTA) firmware updates. Design your screens in EEZ Studio, press **Build**, and flash.
+Everything on the board works out of the box: display, touch, WiFi with saved networks, over-the-air (OTA) updates, speaker, microphone, SD card, battery voltage, backlight dimming and the RGB LED. LVGL 9.5 is wired to EEZ Studio's flow runtime, and the Main screen shows a card for each feature. Design your screens in EEZ Studio, press **Build**, and flash.
 
 ## Hardware
 
@@ -43,14 +45,14 @@ Every GPIO is defined in [`include/app_config.h`](include/app_config.h). The ful
 ### First flash (USB)
 
 ```sh
-git clone <this repo>
-cd <repo>
+git clone https://github.com/AndyGJorgensen/hosyond-esp32-s3-3.5-touchscreen-starter.git
+cd hosyond-esp32-s3-3.5-touchscreen-starter
 pio run -t upload          # default env "es3c35p" uploads over USB
 ```
 
-PlatformIO downloads the ESP32 platform, LVGL 9.5.0 and the audio library on the first build.
+PlatformIO downloads the ESP32 platform, LVGL 9.5.0 and the audio library on the first build. After flashing you'll see the Main screen. Tap **WiFi settings** to set up a network.
 
-> **Windows: keep the project path short.** LVGL's include paths are long, and if the project sits in a deep folder the compiler passes Windows' 260-character path limit. The build then fails with an error like `fatal error: ../lv_conf_internal.h: No such file or directory`, even though the file exists. Clone to something like `C:\dev\es3c35p`, or [enable long paths](https://learn.microsoft.com/windows/win32/fileio/maximum-file-path-limitation#enable-long-paths-in-windows-10-version-1607-and-later) in Windows. After flashing you'll see the Main screen. Tap **WiFi** to set up a network.
+> **Windows: keep the project path short.** LVGL's include paths are long, and if the project sits in a deep folder the compiler passes Windows' 260-character path limit. The build then fails with an error like `fatal error: ../lv_conf_internal.h: No such file or directory`, even though the file exists. Clone to something like `C:\dev\hosyond-esp32-s3-3.5-touchscreen-starter`, or [enable long paths](https://learn.microsoft.com/windows/win32/fileio/maximum-file-path-limitation#enable-long-paths-in-windows-10-version-1607-and-later) in Windows.
 
 ### The Main screen: a dashboard of the board's features
 
