@@ -1,7 +1,9 @@
-#include "wifi_manager.h"
+#include "managers/wifi_manager.h"
 #include <WiFi.h>
 #include <Preferences.h>
 #include "app_config.h"
+
+WifiManager wifi_manager;
 
 enum State { IDLE, SCANNING, CONNECTING, CONNECTED, FAILED };
 
@@ -10,8 +12,8 @@ static String s_ssid[WIFI_SAVED_MAX], s_pass[WIFI_SAVED_MAX];
 static String s_pending_ssid, s_pending_pass;
 static uint32_t s_connect_start;
 static uint32_t s_scan_start;
-static bool s_scan_ready;
-static String s_scan_options;
+static ScanResult s_scan_result = ScanResult::NONE;
+static String s_scan_ssids;
 static int s_autoconnect_next = -1;  // next saved slot to try at boot, -1 = done
 static const String s_empty;
 
@@ -70,7 +72,7 @@ static void try_next_saved() {
   s_autoconnect_next = -1;
 }
 
-void wifi_init() {
+void WifiManager::begin() {
   WiFi.mode(WIFI_STA);
   WiFi.setHostname(WIFI_HOSTNAME);
   WiFi.setAutoReconnect(true);
@@ -81,7 +83,7 @@ void wifi_init() {
 #endif
 }
 
-void wifi_loop() {
+void WifiManager::loop() {
   if (s_state == SCANNING) {
     const int n = WiFi.scanComplete();
     if (n >= 0) {
@@ -94,14 +96,14 @@ void wifi_loop() {
         opts += ssid;
       }
       WiFi.scanDelete();
-      s_scan_options = opts.length() ? opts : "No networks found";
-      s_scan_ready = true;
+      s_scan_ssids = opts;
+      s_scan_result = ScanResult::DONE;
       s_state = WiFi.isConnected() ? CONNECTED : IDLE;
     } else if (n == WIFI_SCAN_FAILED && millis() - s_scan_start > WIFI_SCAN_TIMEOUT_MS) {
       // The core reports FAILED after its own 6 s timeout, but on this board a full scan takes ~6.4 s.
       // Keep waiting: when SCAN_DONE arrives the core resets its timer and returns the real count.
-      s_scan_options = "Scan failed";
-      s_scan_ready = true;
+      s_scan_ssids = "";
+      s_scan_result = ScanResult::FAILED;
       s_state = WiFi.isConnected() ? CONNECTED : IDLE;
     }
     return;
@@ -123,23 +125,23 @@ void wifi_loop() {
   if (s_state == CONNECTED && !WiFi.isConnected()) s_state = IDLE;
 }
 
-void wifi_scan_start() {
+void WifiManager::scan_start() {
   if (s_state == CONNECTING) WiFi.disconnect();  // a pending attempt blocks scanning
   s_autoconnect_next = -1;
-  s_scan_ready = false;
+  s_scan_result = ScanResult::NONE;
   WiFi.scanNetworks(true);
   s_scan_start = millis();
   s_state = SCANNING;
 }
 
-bool wifi_scan_take(String &options) {
-  if (!s_scan_ready) return false;
-  s_scan_ready = false;
-  options = s_scan_options;
-  return true;
+ScanResult WifiManager::scan_take(String &ssids) {
+  const ScanResult r = s_scan_result;
+  s_scan_result = ScanResult::NONE;
+  ssids = s_scan_ssids;
+  return r;
 }
 
-void wifi_connect(const String &ssid, const String &pass) {
+void WifiManager::connect(const String &ssid, const String &pass) {
   if (!ssid.length()) return;
   String p = pass;
   if (!p.length()) {
@@ -151,13 +153,13 @@ void wifi_connect(const String &ssid, const String &pass) {
   begin_connect(ssid, p);
 }
 
-void wifi_disconnect() {
+void WifiManager::disconnect() {
   s_autoconnect_next = -1;
   WiFi.disconnect();
   s_state = IDLE;
 }
 
-void wifi_forget(int index) {
+void WifiManager::forget(int index) {
   if (index < 0 || index >= WIFI_SAVED_MAX || !s_ssid[index].length()) return;
   for (int i = index; i < WIFI_SAVED_MAX - 1; i++) {
     s_ssid[i] = s_ssid[i + 1];
@@ -168,13 +170,13 @@ void wifi_forget(int index) {
   save_list();
 }
 
-const String &wifi_saved_ssid(int index) {
+const String &WifiManager::saved_ssid(int index) const {
   return (index >= 0 && index < WIFI_SAVED_MAX) ? s_ssid[index] : s_empty;
 }
 
-bool wifi_is_connected() { return WiFi.isConnected(); }
+bool WifiManager::connected() const { return WiFi.isConnected(); }
 
-const char *wifi_status_text() {
+const char *WifiManager::status_text() const {
   switch (s_state) {
     case SCANNING:   return "Scanning...";
     case CONNECTING: return "Connecting...";
@@ -184,11 +186,11 @@ const char *wifi_status_text() {
   }
 }
 
-String wifi_ssid_text() {
+String WifiManager::ssid_text() const {
   if (s_state == CONNECTING) return s_pending_ssid;
   return WiFi.isConnected() ? WiFi.SSID() : String("-");
 }
 
-String wifi_ip_text() { return WiFi.isConnected() ? WiFi.localIP().toString() : String("-"); }
-String wifi_rssi_text() { return WiFi.isConnected() ? String(WiFi.RSSI()) + " dBm" : String("-"); }
-String wifi_mac_text() { return WiFi.macAddress(); }
+String WifiManager::ip_text() const { return WiFi.isConnected() ? WiFi.localIP().toString() : String("-"); }
+String WifiManager::rssi_text() const { return WiFi.isConnected() ? String(WiFi.RSSI()) + " dBm" : String("-"); }
+String WifiManager::mac_text() const { return WiFi.macAddress(); }

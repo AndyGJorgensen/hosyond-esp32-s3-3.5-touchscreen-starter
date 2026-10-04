@@ -1,10 +1,11 @@
-#include "lvgl_port.h"
+#include "drivers/lvgl_port.h"
 #include <Arduino.h>
 #include <lvgl.h>
 #include <esp_heap_caps.h>
 #include "app_config.h"
-#include "lcd_st77922.h"
-#include "touch_st77922.h"
+#include "drivers/lcd_st77922.h"
+#include "drivers/touch_st77922.h"
+#include "drivers/backlight.h"
 
 static uint16_t *s_rot_buf;  // PSRAM scratch for software rotation
 
@@ -37,8 +38,7 @@ static void flush_cb(lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
 }
 
 bool lvgl_display_init() {
-  pinMode(LCD_PIN_BL, OUTPUT);
-  digitalWrite(LCD_PIN_BL, HIGH);
+  backlight_begin();
   if (!lcd_init()) return false;
 
   // Full-screen draw buffer in PSRAM so a flush is never split off 4-px alignment

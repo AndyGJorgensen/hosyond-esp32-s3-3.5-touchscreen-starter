@@ -1,4 +1,4 @@
-#include "lcd_st77922.h"
+#include "drivers/lcd_st77922.h"
 #include <Arduino.h>
 #include <string.h>
 #include <driver/spi_master.h>
@@ -92,6 +92,7 @@ alignas(4) static uint8_t s_param[32];  // RAM copy of command params (longest i
 // Must match the vendor framing exactly: per-transaction cmd/addr widths and params sent from a
 // RAM buffer. Device-level widths + SPI_TRANS_USE_TXDATA leave the panel black after a hard reset.
 static void write_cmd(uint8_t cmd, const uint8_t *data, size_t len) {
+  if (len > sizeof(s_param)) return;  // longest vendor init entry is 16 bytes
   spi_transaction_ext_t e;
   memset(&e, 0, sizeof(e));
   e.base.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;

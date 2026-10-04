@@ -1,4 +1,4 @@
-#include "touch_st77922.h"
+#include "drivers/touch_st77922.h"
 #include <Arduino.h>
 #include <Wire.h>
 #include "app_config.h"
@@ -28,8 +28,6 @@ bool touch_init() {
   delay(100);
   digitalWrite(TP_PIN_RST, HIGH);
   delay(100);
-
-  Wire.begin(I2C_PIN_SDA, I2C_PIN_SCL, TOUCH_I2C_HZ);
 
   uint8_t version;
   uint8_t info[5];

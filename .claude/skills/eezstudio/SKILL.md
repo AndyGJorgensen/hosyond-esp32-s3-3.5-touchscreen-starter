@@ -3,25 +3,25 @@ name: eezstudio
 description: Help the user build EEZ Studio LVGL projects by editing the `.eez-project` JSON directly via Python scripts in the project's `tmp/` directory. The agent makes the changes; the user opens EEZ Studio to **visually validate** them before flashing, and retains the option to make additional changes themselves. The skill's central concern is canvas-device divergence — the bug where deployed firmware shows graphical elements that don't appear in EEZ Studio's canvas. Two mechanisms cause it: (1) C code in `main/*.c` calling `lv_obj_set_pos` / `_size` / `_align` etc. on `objects.<widget>` (Mode A), and (2) JSON shapes the C generator accepts but EEZ's canvas renderer silently drops (Mode B). Every edit runs the verifier gates that catch both. Use this skill for any task involving screens, widgets, styles, fonts, themes, or actions in an EEZ Studio LVGL project. Includes Trap reference, schema crib sheet (with pointers into the EEZ Studio source at github.com/eez-open/studio), and C-side wiring conventions for `actions.c` / `vars.c` / `main/main.c`.
 ---
 
-# ⚠ READ FIRST — overrides for THIS project (LCDwiki ES3C35P 3.5" ESP32-S3, `test.eez-project`)
+# ⚠ READ FIRST — overrides for THIS project (LCDwiki ES3C35P 3.5" ESP32-S3, `ES3C35P.eez-project`)
 
-This skill was downloaded from another project: ESP-IDF, LVGL 8.4, `flowSupport: false`, and a
-TrailCurrent colour palette. Where the text below conflicts with this section, **this section wins**.
+The general text below is written for a typical ESP-IDF project: LVGL 8.4, `flowSupport: false`, generated code in
+`main/ui/`, and a named colour palette. Where it conflicts with this section, **this section wins**.
 Also obey the project's `AGENTS.md`.
 
 | Skill says | This project uses |
 |---|---|
 | `main/ui/` (generated) | **`src/ui/`**, read-only (AGENTS.md). Never edit it; fix issues outside src/ui |
-| `main/main.c`, `main/actions.c`, `main/vars.c` | `src/*.cpp`: `main.cpp`, `lvgl_port.cpp` (LVGL display + touch glue), `lcd_st77922.cpp`, `touch_st77922.cpp`, `wifi_gui.cpp` (native actions + native var getters for the WiFi screens), `wifi_manager.cpp`. Put new action/var code in new files under `src/`, not in `src/ui/` |
-| `idf.py build`, `main/CMakeLists.txt` SRCS | **PlatformIO**: `~/.platformio/penv/Scripts/pio.exe run -t upload` uploads **over WiFi (OTA)** by default (`default_envs = ota`, host `esp32-display.local`). The board's OTA switch must be on and the OTA row must say "Ready". For USB (board on **COM4**) use `-e hosyond_esp32s3`. PlatformIO compiles everything under `src/` automatically, so the "add ui_image_*.c / ui_font_*.c to SRCS" advice does not apply. Per AGENTS.md: upload directly, no separate build |
+| `main/main.c`, `main/actions.c`, `main/vars.c` | `src/main.cpp` plus three folders: `src/drivers/` (hardware + LVGL port), `src/managers/` (features with `begin()`/`loop()`), `src/gui/` (one file per screen with its native actions + `get_var_`/`set_var_`, e.g. `gui/wifi_screens.cpp`, `gui/main_screen.cpp`). Put new action/var code in `src/gui/`, never in `src/ui/`. Includes are relative to `src/` (`-Isrc`) |
+| `idf.py build`, `main/CMakeLists.txt` SRCS | **PlatformIO**: `~/.platformio/penv/Scripts/pio.exe run -t upload` uploads over **USB** by default (`default_envs = es3c35p`). Over WiFi: `-e ota` (host `esp32-display.local`). The board's OTA switch must be on and the OTA row must say "Ready". PlatformIO compiles everything under `src/` automatically, so the "add ui_image_*.c / ui_font_*.c to SRCS" advice does not apply. Per AGENTS.md: upload directly, no separate build |
 | `sdkconfig.defaults` `CONFIG_LV_FONT_MONTSERRAT_<n>=y` | There is **no lv_conf.h**: LVGL is configured with `-DLV_CONF_SKIP` + `-D...` build flags in **`platformio.ini`**. Enable a font with `-DLV_FONT_MONTSERRAT_<n>=1` there (14 and 24 are on). Trap 17 does not apply |
 | lvglVersion 8.4 crib sheet | **LVGL 9.5.0**. `lvglVersion` in the .eez-project must match `lvgl/lvgl@` in platformio.ini. Check field names against the EEZ source for 9.x |
-| `flowSupport: false`, "don't use EEZ-Flow" | **`flowSupport: true`**. This project IS an EEZ-Flow project. Don't turn flow off. Values that C supplies (WiFi status etc.) are **native** global variables (`"native": true`, type `string`) that C implements as `get_var_<name>()` / `set_var_<name>()` in `src/wifi_gui.cpp`. Button logic uses **native actions** (`"implementationType": "native"`), implemented as `action_<name>(lv_event_t *e)`. Screen changes from C: `eez_flow_set_screen(<screen id>, LV_SCR_LOAD_ANIM_NONE, 0, 0)`. Screen ids are 1-based in `userPages` order (Main=1, Wifi=2, WifiSaved=3), passed as the `nav` action's `userData` |
+| `flowSupport: false`, "don't use EEZ-Flow" | **`flowSupport: true`**. This project IS an EEZ-Flow project. Don't turn flow off. Values that C supplies (WiFi status etc.) are **native** global variables (`"native": true`, type `string`) that C implements as `get_var_<name>()` / `set_var_<name>()` in `src/gui/<screen>.cpp`. Button logic uses **native actions** (`"implementationType": "native"`), implemented as `action_<name>(lv_event_t *e)`. Screen changes from C: `eez_flow_set_screen(<screen id>, LV_SCR_LOAD_ANIM_NONE, 0, 0)`. Screen ids are 1-based in `userPages` order (Main=1, Wifi=2, WifiSaved=3), passed as the `nav` action's `userData` |
 | `destinationFolder: "../main/ui"` | `src\ui` (relative to the .eez-project in the repo root) |
-| `lvglInclude` `lvgl.h` advice | Leave it at `lvgl/lvgl.h`. platformio.ini adds `-I.pio/libdeps/hosyond_esp32s3` so `lvgl/lvgl.h` resolves |
+| `lvglInclude` `lvgl.h` advice | Leave it at `lvgl/lvgl.h`. platformio.ini adds `-I.pio/libdeps/$PIOENV` so `lvgl/lvgl.h` resolves |
 | "Hex colours are forbidden, use palette tokens" | The palette is almost empty: one token `off` = `#000000` in a single Default theme. Don't invent tokens or rewrite existing colours. Ask the user whether to set up a palette before applying this rule |
 | Helper scripts in `~/.claude/skills/eezstudio/` (`verify_project.py`, `verify_no_canvas_divergence.py`, `render_pages.py`, `font_metrics.py`, `SCHEMA_REFERENCE.md`) | **Not installed.** They didn't come with the download. Don't claim a gate passed if its script doesn't exist. Do the equivalent checks inline (JSON parse, identifier diff, dangling-reference scan, duplicate objID scan, grep `src/*.cpp` minus `src/ui` for geometry calls on `objects.`) and say which checks were done manually |
-| Spotter / Fireside / TrailCurrent reference projects | Not available here. Mirror existing widgets in **`test.eez-project`** instead. `tmp/add_wifi_screens.py` is a working example of the edit-script workflow in this project |
+| "A known-good reference project" | Mirror existing widgets in **`ES3C35P.eez-project`** (the Wifi/WifiSaved pages cover button, label, dropdown, textarea, switch and keyboard shapes) |
 | Screen size 1024×600 / 800×480 examples | **480×320 landscape** (`displayWidth 480`, `displayHeight 320`). The panel is natively 320×480 portrait (ST77922). `LCD_ROTATION 3` in `include/app_config.h` rotates it in software. Touch is rotated to match automatically |
 
 Still valid here and worth following: the backup-then-edit Python script workflow (scripts in `tmp/`,
@@ -29,7 +29,7 @@ git-ignored), the rule that canvas must match device (no `lv_obj_set_pos/size/al
 `objects.*`), the LVGLScreenWidget / LVGLUserWidgetWidget strict shapes, Traps 0–16 and 18–21, and
 asking the user to reload EEZ Studio and Build before flashing.
 
-Board-specific notes (pins, display, touch) live in **`board.md`**. Pins and user-tunable settings
+Board-specific notes (pins, display, touch) live in **`board/board.md`** (it links the schematic and datasheets; local copies go in the git-ignored `board/datasheets/`). Pins and user-tunable settings
 live in `include/app_config.h`.
 
 
@@ -46,7 +46,7 @@ The clean separation is:
 >
 > | Variable | What it points at |
 > |---|---|
-> | `$PROJECT_ROOT` | root of the product/asset repository |
+> | `$PROJECT_ROOT` | root of the project repository |
 >
 > Resolve each from the environment; if unset, ask the user and offer to save
 > the answer to a gitignored local config file. Never hardcode a
@@ -67,11 +67,9 @@ The clean separation is:
 
 ## The non-negotiable rule: canvas must match device
 
-**What runs on the device must match what EEZ Studio's canvas renders.** This is THE failure mode the user has been bitten by repeatedly, and it's the only thing the rest of this skill exists to prevent. When an agent makes a GUI change and the user opens EEZ Studio, the canvas must show exactly what's going to render on the hardware. If the deployed firmware has a widget the canvas doesn't show, the agent broke the rule.
+**What runs on the device must match what EEZ Studio's canvas renders.** This is THE most common failure mode in agent-edited EEZ projects, and the main thing the rest of this skill exists to prevent. When an agent makes a GUI change and the user opens EEZ Studio, the canvas must show exactly what's going to render on the hardware. If the deployed firmware has a widget the canvas doesn't show, the agent broke the rule.
 
-The user has stated this directly, multiple times:
-
-> "I don't care if you call it a patch, a script, an EEZ Studio change — that terminology means nothing to me. The question is when an agent makes a change and I deploy it to hardware, then open EEZ Studio do they match."
+Put simply: whatever you call the change (a patch, a script, an EEZ Studio edit), the test is the same. After an agent makes a change and the firmware is deployed, does the device match what EEZ Studio shows?
 
 Two distinct mechanisms produce canvas-device divergence — both are banned:
 
@@ -85,7 +83,7 @@ The hardest version: `LVGLScreenWidget` (page root) and `LVGLUserWidgetWidget` (
 
 **When the user says "I opened EEZ Studio and I don't see your change", that's the bug.** Don't argue. Don't paper over with another C override (Mode A). Don't try a different JSON shape and hope (Mode B). Read what you wrote against the canonical shape in this skill, fix the JSON to the canonical shape, re-run the gates, and ask the user to reload EEZ Studio.
 
-**Colors in styles must reference named tokens from the project palette. Hex values in styles are forbidden — no exceptions.** This is the rule the user has restated multiple times. Earlier versions of this skill said "hex requires user approval"; that was wrong — approval is not the bar, **named tokens are the bar**. If the palette doesn't carry the color the agent wants, the agent does NOT ask permission to drop a hex value. The agent asks the user to add a named color to the palette, then references that name in the spec.
+**Colors in styles must reference named tokens from the project palette. Hex values in styles are forbidden — no exceptions.** This rule matters because colours are what theme switching depends on. Earlier versions of this skill said "hex requires user approval"; that was wrong — approval is not the bar, **named tokens are the bar**. If the palette doesn't carry the color the agent wants, the agent does NOT ask permission to drop a hex value. The agent asks the user to add a named color to the palette, then references that name in the spec.
 
 **The full rule:**
 
@@ -116,11 +114,9 @@ Concrete phrasing when you need a new token:
 
 If the user says no or proposes a different name/hex, take that and move on. The user owns the palette.
 
-**Agents make the edits to `.eez-project`. The user opens EEZ Studio to visually validate them.** This is the working pattern, stated by the user verbatim (2026-06-22):
+**Agents make the edits to `.eez-project`. The user opens EEZ Studio to visually validate them.** This is the working pattern: the agent makes the changes, the user validates them visually in EEZ Studio before flashing, and the user can still make other changes themselves.
 
-> "It's not Agent produces a spec. The agent is supposed to make changes and the user uses EEZ Studio to validate those prior to flashing visually. The user retains the option to make other changes themselves but agents should be able to make changes."
-
-The previous skill iteration said "agents don't write JSON, produce a spec the user executes." That was an over-correction. Days of working with this user proved it's "useless" — agents that just produce checklists block the user behind their own click-through. The right division of labor is: **agent edits the JSON, user verifies the canvas matches the intent, then flashes**. The visual reload-and-check IS the safety net — there's no need to outsource the authoring to the user as well.
+An alternative is for agents to only produce a spec the user executes by hand. In practice that blocks the user behind their own click-through. The right division of labor is: **agent edits the JSON, user verifies the canvas matches the intent, then flashes**. The visual reload-and-check IS the safety net — there's no need to outsource the authoring to the user as well.
 
 Why this works (and the "produce a spec" approach didn't):
 
@@ -139,7 +135,7 @@ A Python script in `<project>/tmp/`, named after what it adds (e.g. `add_brightn
 4. **Mirrors a known-working widget shape.** Find an existing widget in the project that already renders correctly in the canvas; produce builder functions that emit the same field set. Do not invent shapes — the canonical shapes for each widget type are documented in this skill's "Schema crib sheet" and in `SCHEMA_REFERENCE.md`.
 5. **Inserts via tree traversal.** `find_page(proj, "PageSetup")` then `find_node(page, "setup_body")` to locate the parent, then `parent["children"].append(build_new_widget())`. Don't rely on JSON file offsets — they shift between EEZ Studio saves.
 
-Reference implementation: `tmp/patch_volume_slider.py` and `tmp/add_brightness_slider.py` in the Spotter project. Mirror their shape for any new widget-addition script.
+Keep each script small and named after the feature it adds (e.g. `tmp/add_brightness_slider.py`), and mirror the shape of scripts that already worked in the project.
 
 ## The gates the script must pass before reporting done
 
@@ -185,7 +181,7 @@ Don't lecture the user about the rule; just name the conflict and offer the choi
 
 ## Layout is math + verification, not authoring — three mandatory gates
 
-Layout bugs are the most-frequent complaint about agent-authored EEZ projects, and the reason is structural: agents treat layout as authoring (write coordinates, ship) when it is actually math followed by verification (compute bounds, render, look, then ship). The traps below this section are useful reference, but warnings don't prevent bugs — gates do. **The following three gates are mandatory for every layout-touching change.** If you skip any of them you are guaranteed to ship the kind of bug the user has already pointed out three times. Don't.
+Layout bugs are the most-frequent complaint about agent-authored EEZ projects, and the reason is structural: agents treat layout as authoring (write coordinates, ship) when it is actually math followed by verification (compute bounds, render, look, then ship). The traps below this section are useful reference, but warnings don't prevent bugs — gates do. **The following three gates are mandatory for every layout-touching change.** Skipping them is how the usual layout bugs (clipped labels, overlapping widgets, collapsed keyboards) get shipped.
 
 ### Gate 1 — Pixel-math worksheet before any `.eez-project` write
 
@@ -248,7 +244,7 @@ Things to look for in the PNG:
 
 If any of those fail, fix the JSON, re-render, re-read. Only then hand off to the user for canvas reload.
 
-Historical record: skipping pixel-math has produced misaligned axle buttons (Spotter), keyboards rendering as a single row at the bottom (Spotter MQTT/rename screens — fixed by Trap 13's style pinning), labels clipped at right edges (FluidCNC pendant card), and overlapping wizard steps (Spotter WiFi). The renderer would have caught these. Use it when bounds are tight.
+Typical results of skipping the pixel math: misaligned buttons, keyboards rendering as a single row at the bottom (fixed by Trap 13's style pinning), labels clipped at right edges, and overlapping wizard steps. A render check catches these. Use it when bounds are tight.
 
 ### Gate 4 — Project-wide named-reference verification before recommending styles, colors, fonts, or actions
 
@@ -281,7 +277,7 @@ Exit code 0 = clean. Non-zero = at least one dangling/incomplete reference. Read
 
 ### Gate 5 — No C-side geometry override on EEZ-exported widgets (THE rule that keeps slipping)
 
-The user has restated this multiple times across multiple sessions and the skill keeps failing to enforce it. Past skill revisions handled it as text: "EEZ Studio is the single source of truth." That phrasing is correct but gets skimmed under cognitive load. **This gate replaces the aspiration with a mechanical halt pattern.**
+This rule is easy to state and easy to break. Written as a principle alone, "EEZ Studio is the single source of truth." That phrasing is correct but gets skimmed under cognitive load. **This gate replaces the aspiration with a mechanical halt pattern.**
 
 **Halt pattern — treat exactly like `rm -rf /`:**
 
@@ -337,12 +333,12 @@ python3 <project>/tmp/verify_no_canvas_divergence.py <project>
 
 1. Before reporting any C work as complete.
 2. Before each `idf.py build` cycle when you've touched a `.c` file that references `objects.`.
-3. When inheriting a project — Spotter, Fireside, FluidCNC pendant — to find pre-existing divergence.
+3. When inheriting an existing project, to find pre-existing divergence.
 
 **When the gate reports an issue, the resolution path is always one of two:**
 
 1. **Delete the C call and move the geometry to the JSON.** This is the default. For widgets that LVGL overrides at runtime (keyboards etc.), pin via `localStyles` (see Trap 13).
-2. **Delete the C call entirely** because the JSON already authors the correct geometry. (This is exactly what `fix_keyboard_alignment` became in Spotter once the keyboards were style-pinned: removed without replacement.)
+2. **Delete the C call entirely** because the JSON already authors the correct geometry. (For example, a C helper that pinned keyboard geometry becomes dead weight once the keyboards are style-pinned in the JSON: remove it without replacement.)
 
 There is no third option. There is no "but this case is special" exception. If a previous skill revision documented a C-side fix and a later revision added a JSON-side fix that supersedes it, the C-side fix becomes immediately wrong — delete it. The user's repeated complaint about canvas drift is exactly this: half-fixes accumulating, with no mechanical sweep that retires the stale ones.
 
@@ -352,7 +348,7 @@ The audit was missing from previous skill versions. It's here now. Run it.
 
 When you find a helper already in the project (`fix_keyboard_alignment`, `vcenter`, `measure_text`, `paint_row`, `disable_clickable`), **open it and verify it implements the full fix the skill prescribes**. Do not assume an existing helper is canonical.
 
-The motivating case: Spotter has `fix_keyboard_alignment(kb, x, y)` — two args, no size. The skill's Trap 13 fix is `fix_keyboard(kb, x, y, w, h)` — four args, with size. The two-arg form happens to work for keyboards on otherwise-empty screens because LVGL's default fill-parent sizing coincidentally produces the right result. On a screen with siblings, the same call collapses the keyboard to one visible row. An agent calling the existing 2-arg helper "because the project already has it" reproduces the bug across every new keyboard.
+Example: a project has `fix_keyboard_alignment(kb, x, y)` — two args, no size. The skill's Trap 13 fix is `fix_keyboard(kb, x, y, w, h)` — four args, with size. The two-arg form happens to work for keyboards on otherwise-empty screens because LVGL's default fill-parent sizing coincidentally produces the right result. On a screen with siblings, the same call collapses the keyboard to one visible row. An agent calling the existing 2-arg helper "because the project already has it" reproduces the bug across every new keyboard.
 
 The rule: **before calling an existing helper, read its body. If it's incomplete relative to the skill's documented fix, extend it in place — and update every existing call site to pass the new arguments**. Do not add a sibling helper that papers over the incomplete one. Do not silently call the incomplete one and hope. The user will spot the same bug in a screen you didn't even touch.
 
@@ -431,7 +427,7 @@ if __name__ == "__main__":
 
 Find a sibling widget in the project that already renders correctly in the canvas. Read its JSON and produce a builder that emits the same fields, changing only what needs to change (identifier, text, position, event handler action name). Do NOT invent shapes — the canonical key sets for each widget type are documented below in "Schema crib sheet" and in `SCHEMA_REFERENCE.md`.
 
-The Spotter project's `tmp/patch_volume_slider.py` and `tmp/add_brightness_slider.py` are the canonical references for adding a label+value+slider row. Mirror that shape for similar additions.
+When the project already has a working edit script for a similar addition (e.g. a label+value+slider row), mirror its shape.
 
 ### Required gates after the script runs
 
@@ -519,7 +515,7 @@ Use the same guard in `main.c` around `ui_init()` and show a "run EEZ Studio Bui
 
 **⭐ FIRST STOP for any "is this valid?" question: [`SCHEMA_REFERENCE.md`](./SCHEMA_REFERENCE.md) in this skill directory.**
 
-That file is the canonical schema reference — every widget type, every flag, every state, every part, every style property, every event, every code-gen placeholder, every cross-version difference between LVGL 8.x / 9.x / 9.5.x — all distilled directly from the EEZ Studio source at `github.com/eez-open/studio` with source file + line citations on every claim. It was generated specifically to stop the "agent re-discovers the same edge case every session" cycle the user has called out repeatedly.
+That file is the canonical schema reference — every widget type, every flag, every state, every part, every style property, every event, every code-gen placeholder, every cross-version difference between LVGL 8.x / 9.x / 9.5.x — all distilled directly from the EEZ Studio source at `github.com/eez-open/studio` with source file + line citations on every claim. It was generated specifically to stop the "agent re-discovers the same edge case every session" cycle.
 
 **Workflow:**
 1. Have a schema question? → Open `SCHEMA_REFERENCE.md` first. Use its table of contents to jump to widget X / flag Y / property Z.
@@ -542,7 +538,7 @@ The most useful files when reasoning about widget behavior (these are the SCHEMA
 
 Two side references for shape checking when you're not sure your JSON describes what you intended:
 
-- **Working production reference**: `$PROJECT_ROOT/Product/TrailCurrentFireside/GUI/TrailCurrentFireside.eez-project` — Fireside is the canonical TrailCurrent EEZ Studio project. Inspect it for the canonical shape of every widget type you need.
+- **The project itself**: widgets that already render correctly in the project's canvas are the best reference for the shape of each widget type.
 - **Upstream simple example**: `https://github.com/eez-open/eez-project-examples` → `examples/LVGL/Smart Home Low Res.eez-project` is a minimal working file.
 
 The pattern: form a hypothesis about how a widget will behave → check Base.tsx / the specific widget's .tsx file → confirm against a working example → only then write the spec. Skipping the source-check step is what produced the keyboard bug (Trap 13) — every agent assumed `align/min/max` weren't needed in the JSON because the JSON-authored width/height "obviously" should suffice. Reading `Keyboard.tsx` makes clear it doesn't.
@@ -591,7 +587,7 @@ The pattern: form a hypothesis about how a widget will behave → check Base.tsx
 
 ### settings.build
 
-`destinationFolder` is **relative to the .eez-project file**, e.g. `"../main/ui"`. Every file entry must have a `template` containing the `${eez-studio ...}` placeholders that EEZ Studio fills in. Copy templates from Fireside verbatim.
+`destinationFolder` is **relative to the .eez-project file**, e.g. `"../main/ui"`. Every file entry must have a `template` containing the `${eez-studio ...}` placeholders that EEZ Studio fills in. Copy templates from a project EEZ Studio created itself (File > New), verbatim.
 
 ### Pages (userPages and userWidgets)
 
@@ -639,7 +635,7 @@ EEZ Studio silently drops a page if its root LVGLScreenWidget has unknown fields
 }
 ```
 
-Note `groupIndex` IS valid on the screen widget — it's present on every screen in Fireside and other working projects. Earlier skill versions called it forbidden; that was wrong.
+Note `groupIndex` IS valid on the screen widget — it's present on every screen in working projects. Earlier skill versions called it forbidden; that was wrong.
 
 **Do NOT include on a LVGLScreenWidget**: `useStyle`, `identifier`, `group`, `scrollSnapX`, `scrollSnapY`, `flagScrollbarMode`, `flagScrollDirection`. Adding any of these makes EEZ Studio silently fail to load the page (no error dialog — it just shows nothing in the Pages list).
 
@@ -647,9 +643,9 @@ Note `groupIndex` IS valid on the screen widget — it's present on every screen
 
 Also stricter than a normal widget. Required field: `userPropertyValues`. Do NOT include `useStyle`, `context`, `inputsProperties`, `outputsProperties`.
 
-**Per-instance object naming.** When EEZ Studio exports a user widget that's instanced on multiple pages (e.g. a StatusBar on every pendant page), each child widget gets a per-instance entry in the `objects` struct, prefixed by `<page>_<userwidget_identifier>__`. There is **no single** `objects.<child>` — referencing one will fail to compile with `'objects_t' has no member named '<child>'`.
+**Per-instance object naming.** When EEZ Studio exports a user widget that's instanced on multiple pages (e.g. a StatusBar on every page), each child widget gets a per-instance entry in the `objects` struct, prefixed by `<page>_<userwidget_identifier>__`. There is **no single** `objects.<child>` — referencing one will fail to compile with `'objects_t' has no member named '<child>'`.
 
-Example: a `status_wifi_icon` label inside the `StatusBar` user widget, instanced as `status_bar` on 8 pendant pages, surfaces in the export as:
+Example: a `status_wifi_icon` label inside the `StatusBar` user widget, instanced as `status_bar` on 8 pages, surfaces in the export as:
 
 ```c
 objects.page_dashboard_status_bar__status_wifi_icon
@@ -852,7 +848,7 @@ EEZ Studio decides whether `text_font: "X"` becomes `&lv_font_X` or `&ui_font_X`
 
 The LVGL built-ins available as `MONTSERRAT_<size>` cover sizes 8–48. There is **no** built-in for Font Awesome, DejaVu Mono, etc. — those must be custom.
 
-Pattern (matches Fireside): in the generator's `FONTS` list, register only the truly custom families (Font Awesome, monospace, custom display fonts). For every Montserrat size, reference it as `"MONTSERRAT_<size>"` in `text_font` and ensure the matching `CONFIG_LV_FONT_MONTSERRAT_<size>=y` is in `sdkconfig.defaults`.
+Pattern: in the generator's `FONTS` list, register only the truly custom families (Font Awesome, monospace, custom display fonts). For every Montserrat size, reference it as `"MONTSERRAT_<size>"` in `text_font` and ensure the matching `CONFIG_LV_FONT_MONTSERRAT_<size>=y` is in `sdkconfig.defaults`.
 
 **Edit `sdkconfig.defaults` only — never `sdkconfig`.** ESP-IDF regenerates `sdkconfig` on every `idf.py build` (and during `menuconfig`, `reconfigure`, `set-target`, `fullclean`). Any direct edit to `sdkconfig` is silently overwritten by the next build, so it's worse than useless — it gives the false impression the change is live for one cycle and then vanishes. Put the Kconfig change in `sdkconfig.defaults` and the next `idf.py build` picks it up automatically.
 
@@ -867,7 +863,7 @@ The EEZ Studio default `styles.c` template emits:
 ```
 That's broken the moment your project uses any custom (`ui_font_*`) font: `styles.c` references `&ui_font_<name>` but the extern declaration only lives in `fonts.h`, which is **not** transitively included anywhere. Symptom: `'ui_font_<name>' undeclared (first use in this function)` even though `ui_font_<name>.c` exists in `main/ui/` and is in `SRCS`.
 
-Fix: override the template in `settings.build.files[].template` for `styles.c` to match Fireside's working version:
+Fix: override the template in `settings.build.files[].template` for `styles.c` to include the font and image headers:
 ```jsonc
 {
   "fileName": "styles.c",
@@ -887,7 +883,7 @@ After install, **fully quit and relaunch EEZ Studio** — it caches the "tool no
 
 #### The "Embed fonts inside eez-project" toggle and the empty-`embeddedFontFile` failure
 
-**Absolute rule: EEZ Studio owns every file under `main/ui/`, including every `ui_font_*.c` and `ui_image_*.c`. The agent never runs `lv_font_conv` and never writes to `main/ui/` — not to unstick a build, not "just for fonts", not because the project's own comments suggest it's ok.** The moment you write a `ui_font_*.c` yourself, EEZ Studio stops being the source of truth: the file drifts from the JSON, the next EEZ Studio export overwrites it inconsistently, and canvas-device divergence returns through the back door. This has burned a user's real project — repeatedly — and the user has stated this rule verbatim: **"EEZ Studio remains the SINGLE SOURCE OF TRUTH."**
+**Absolute rule: EEZ Studio owns every file under `main/ui/`, including every `ui_font_*.c` and `ui_image_*.c`. The agent never runs `lv_font_conv` and never writes to `main/ui/` — not to unstick a build, not "just for fonts", not because the project's own comments suggest it's ok.** The moment you write a `ui_font_*.c` yourself, EEZ Studio stops being the source of truth: the file drifts from the JSON, the next EEZ Studio export overwrites it inconsistently, and canvas-device divergence returns through the back door. This has broken real projects repeatedly. The rule: **EEZ Studio remains the SINGLE SOURCE OF TRUTH.**
 
 `embedFonts: true` in `settings.general` (the **Embed fonts inside eez-project** toggle) auto-converts every font's source TTF/OTF into `embeddedFontFile` (raw base64 of the file bytes). EEZ Studio then decodes that blob on Ctrl+B and emits `main/ui/ui_font_<name>.c`. A healthy font entry in a working project has:
 
@@ -922,7 +918,7 @@ Symptoms that mean you're hitting this: `undefined reference to ui_font_<name>` 
 **Never do these things — they look like fixes but each breaks the source-of-truth invariant:**
 
 1. **Never run `lv_font_conv` yourself and write to `main/ui/ui_font_<name>.c`.** The file's contents diverge from what EEZ Studio would produce, and the very next Ctrl+B (after any font change) will emit a different file, silently. Even if a link error is blocking the user, the answer is to populate `embeddedFontFile` and let Ctrl+B produce the file — never to write it yourself. The user has called this "hacking" verbatim.
-2. **Never trust `gen_eez_project.py` comments or `main/CMakeLists.txt` comments that claim "font conversion is owned by the generator / by `tmp/gen_eez_project.py`, not EEZ Studio's auto-embed."** Such comments have appeared in real projects (Fireside CrowPanel, 2026-07) and are wrong regardless of who wrote them. If you find one, flag it to the user as project debt to clean up — but do NOT use it as justification for running `lv_font_conv`. The correct behavior is always: the `.eez-project` should carry embedded font data, and EEZ Studio should emit the `.c`.
+2. **Never trust `gen_eez_project.py` comments or `main/CMakeLists.txt` comments that claim "font conversion is owned by the generator / by `tmp/gen_eez_project.py`, not EEZ Studio's auto-embed."** Such comments have appeared in real projects and are wrong regardless of who wrote them. If you find one, flag it to the user as project debt to clean up — but do NOT use it as justification for running `lv_font_conv`. The correct behavior is always: the `.eez-project` should carry embedded font data, and EEZ Studio should emit the `.c`.
 3. **Never delete a `ui_font_*.c` to "let EEZ Studio regenerate it" without first confirming `embeddedFontFile` is populated.** If the field is empty, deleting the `.c` just leaves the user with a broken build until the field is fixed. Repair the JSON first, then the `.c` regenerates cleanly on next Ctrl+B.
 
 **Legitimate reasons for the agent to invoke `lv_font_conv` directly: none, in normal use.** The one narrow exception is when a project's owner has explicitly opted into a generator-driven pipeline and told you so — even then, the correct move is to raise the trade-off (loss of EEZ-Studio-as-source-of-truth) and let them re-confirm before you write anything under `main/ui/`. Default posture: don't.
@@ -1062,7 +1058,7 @@ To pin the rendered size, the widget's **style** must declare:
 "min_height": H,   "max_height": H,
 ```
 
-This is exactly how Fireside's `StylePanelNavBarBottom` pins itself to 1024×60 — without those four keys the bottom nav doesn't render at full width.
+For example, a bottom navigation bar style pins itself to the screen width × 60 this way. Without those four keys the bar doesn't render at full width.
 
 **Symptom of the trap**: the widget appears smaller than you authored; children clip; text labels appear with only the bottom half visible.
 
@@ -1242,7 +1238,7 @@ LVGL's bundled `lv_font_montserrat_*` fonts ship with a Latin-1-ish subset that 
 - `·` (middle dot, U+00B7) — same
 - Most non-ASCII punctuation
 
-Symptom: a label authored as `"Scanning…"` or `"Connect to TrailCurrent — pick a network"` shows as `Scanning[]` or `Connect to TrailCurrent [] pick a network` on-device (and in EEZ Studio's canvas if it uses the same subset for preview).
+Symptom: a label authored as `"Scanning…"` or `"Connect to the device — pick a network"` shows as `Scanning[]` or `Connect to the device [] pick a network` on-device (and in EEZ Studio's canvas if it uses the same subset for preview).
 
 **Rule**: every label text emitted by a generator or one-shot patch should pass through an ASCII normalizer before it lands in the JSON:
 
@@ -1269,7 +1265,7 @@ If you need a real em dash or ellipsis for design reasons, switch the label's `t
 
 ### Trap 12 — `text_align: CENTER` only centers HORIZONTALLY; vertical centering needs label sizing + position math
 
-This bit me hard on a wizard with many buttons. I authored each button label as `(left=0, top=0, width=btn_w, height=btn_h)` with `text_align: CENTER` and assumed the text would sit dead-center. It sits CENTERED HORIZONTALLY but ANCHORED TO THE TOP vertically. A 22-px-tall glyph inside a 70-px-tall label shows up hugging the top of the button.
+A common case is a wizard with many buttons, each button label authored as `(left=0, top=0, width=btn_w, height=btn_h)` with `text_align: CENTER` and assumed the text would sit dead-center. It sits CENTERED HORIZONTALLY but ANCHORED TO THE TOP vertically. A 22-px-tall glyph inside a 70-px-tall label shows up hugging the top of the button.
 
 **Why**: `text_align` controls glyph positioning inside the label's text rectangle, but the label widget itself is 70 px tall and the text rectangle's baseline is at the top of that 70-px box. There is no `text_v_align` property on LVGL labels.
 
@@ -1402,14 +1398,14 @@ The tap target needs `bg_opa: 0` so its (otherwise opaque) background doesn't vi
 
 ### Trap 17 — `sdkconfig` is sticky; new flags in `sdkconfig.defaults` don't retroactively apply
 
-This bit Fireside hard. The skill already says "edit `sdkconfig.defaults`, never `sdkconfig`." That's correct but incomplete — it covers FUTURE builds. Here's the missing piece:
+This has cost real debugging time. The skill already says "edit `sdkconfig.defaults`, never `sdkconfig`." That's correct but incomplete — it covers FUTURE builds. Here's the missing piece:
 
 **ESP-IDF only applies `sdkconfig.defaults` to keys that are NOT already present in `sdkconfig`.** Once `sdkconfig` has been generated, adding a new `CONFIG_FOO=y` to `sdkconfig.defaults` does NOT silently appear in `sdkconfig` on the next build. The new key has to be applied by either:
 - Deleting `sdkconfig` and letting it regenerate, OR
 - Running `idf.py reconfigure` (regenerates from defaults), OR
 - Running `idf.py fullclean` then a fresh build.
 
-Symptom in the Fireside case: `sdkconfig.defaults` had `CONFIG_ESP_TLS_INSECURE=y` and `CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY=y` for many builds, but `sdkconfig` showed both as `# … is not set`. The MQTT TLS handshake failed with mbedtls error 0x8017 ("No server verification option set in esp_tls_cfg_t structure") because the kconfig flags that would have made the C code's no-cert path acceptable were never compiled in. Hours of "why doesn't this work, the flags are in defaults" debugging.
+Example symptom: `sdkconfig.defaults` had `CONFIG_ESP_TLS_INSECURE=y` and `CONFIG_ESP_TLS_SKIP_SERVER_CERT_VERIFY=y` for many builds, but `sdkconfig` showed both as `# … is not set`. The MQTT TLS handshake failed with mbedtls error 0x8017 ("No server verification option set in esp_tls_cfg_t structure") because the kconfig flags that would have made the C code's no-cert path acceptable were never compiled in. Hours of "why doesn't this work, the flags are in defaults" debugging.
 
 **Rule**: when adding any new `CONFIG_*` to `sdkconfig.defaults`, immediately `rm sdkconfig && idf.py reconfigure` (or `idf.py fullclean`) so the key actually lands in `sdkconfig`. Verify with `grep CONFIG_NEWLY_ADDED_FLAG sdkconfig`. If the line shows `# … is not set` after defaults says `=y`, the regeneration didn't happen.
 
@@ -1472,7 +1468,7 @@ The fix:
 2. **For every empty style the project has**, surface it to the user as a finding: "this style is empty; widgets using it currently render as LVGL defaults; either delete the style and update referrers, or fill it in with bg_color/radius/pad_*/etc." Let the user decide.
 3. **In any spec the agent writes**, never recommend `useStyle: <empty style>`. If the only matching style is empty, recommend `useStyle: <similar style that does have a definition>` and override differences via `localStyles`.
 
-Concrete case (Spotter, this conversation): `StyleButtonSucces` had no definition. My spec said `useStyle: StyleButtonSucces` for the Save button. Canvas rendered a blue button with the wrong radius and a mis-positioned label. The fix was: use `StyleButtonDefault` (which has `radius: 5`, `bg_color: BackgroundNotSelected`, defined) and override `bg_color: AccentColor` + `pad_*: 0` in `localStyles` to get the brand-green primary button.
+Example: a style `StyleButtonSucces` had no definition, and a spec said `useStyle: StyleButtonSucces` for a Save button. Canvas rendered a blue button with the wrong radius and a mis-positioned label. The fix was: use `StyleButtonDefault` (which has `radius: 5`, `bg_color: BackgroundNotSelected`, defined) and override `bg_color: AccentColor` + `pad_*: 0` in `localStyles` to get the brand-green primary button.
 
 ### Trap 19 — PIL `getbbox()` lies for fonts you generated with `lv_font_conv` from a glyph subset
 
@@ -1647,7 +1643,7 @@ arc["left"] = int(round(axis_x - arc["width"] / 2))
 
 **Do NOT force a shared value→unit column across rows when their hero widths differ.** An earlier iteration of this skill recommended column-aligning the secondary row's value→unit boundary to the hero row's. That was wrong: the volts row's hero range (`12.0`–`13.8`, always 4 chars at RM18) is visually narrower than the percent row's hero (2 digits at RM36), and forcing them to share a column pushes the secondary pair off the card axis. The CORRECT rule is the card-axis rule above: each row keeps its own hero-width pair, centered on the shared vertical axis. The value→unit boundaries land at different x in each row, and that's fine — what unifies the stack is the axis, not the column.
 
-Concrete reference: `GUI/tmp/center_card_axis.py` in Spotter centers arc, icon, hero `%` row, volts `V` row, and bottom status text all on `axis_x = 128` of a 256-wide card.
+Example: a 256-wide card centres its arc, icon, hero `%` row, volts `V` row and bottom status text all on `axis_x = 128`.
 
 **Cross-card cards are independent.** Battery card and solar card each get their own axis at their own `card_w / 2`. The cards are positioned by the page layout — they don't share an axis with each other.
 
@@ -1741,7 +1737,7 @@ The two axes are decoupled. Author them as two separate scripts in `<project>/tm
 
 Each script backs up the `.eez-project`, mutates idempotently, and is replayable. Gates 1/3/5 must pass after each.
 
-Reference implementations are in the Spotter project's `GUI/tmp/`:
+Typical scripts for these passes:
 - `align_final.py` — ink-centered vertical pass (icons + text in mixed fonts)
 - `hero_recenter.py` — hero-aligned horizontal pass (value+unit pairs)
 - `fix_value_widths.py` — `ceil`-rounded widths + `longMode: CLIP` (Trap 20)
@@ -1749,7 +1745,7 @@ Reference implementations are in the Spotter project's `GUI/tmp/`:
 
 ### `tmp/` scripts MUST be `.gitignore`d
 
-Every edit script you write into a project's `tmp/` (or `GUI/tmp/`) is **local working state**, not source code. The user has flagged this multiple times across projects: agents keep committing single-use patch scripts and `.bak` backups into the repo, polluting history with files that have no shared meaning.
+Every edit script you write into a project's `tmp/` (or `GUI/tmp/`) is **local working state**, not source code. A common mistake is committing single-use patch scripts and `.bak` backups into the repo, polluting history with files that have no shared meaning.
 
 **First action on any new project** — verify `.gitignore` has:
 
@@ -1841,7 +1837,7 @@ You read those PNGs back with the Read tool and spot overflow / overlap / wrong 
 - Hidden widgets that should be visible
 - Wrong theme color applied to wrong widget
 
-A working skeleton is at `tmp/render_pages.py` in the TrailCurrent FluidCNC Pendant project — copy and adapt.
+Keep it in the project's `tmp/` (e.g. `tmp/render_pages.py`) and adapt it per project.
 
 **Workflow:** edit generator → run generator (`tmp/gen_eez_project.py`) → run renderer (`tmp/render_pages.py`) → Read the PNGs → iterate. Only ask the user to open EEZ Studio once the renderer says it looks right.
 
@@ -1908,7 +1904,7 @@ def user_widget_instance(ident, x, y, w, h, name):
 # ...
 ```
 
-See `$PROJECT_ROOT/ExampleProjects/TrailCurrentFluidCNCPendant/tmp/gen_eez_project.py` for a fully worked example with 10 screens, 71 styles, 14 fonts, and 3 user widgets.
+A full generator built this way scales to projects with many screens, styles, fonts and user widgets.
 
 ## Validation — always do before sending to the user
 
@@ -1987,7 +1983,7 @@ You implement (in `main/`):
 | `actions.c` | `void action_<Name>(lv_event_t *e) { ... }` for each declared action; dispatch on `lv_event_get_user_data(e)` for variant-encoding actions |
 | `vars.c` | `<type> get_var_<name>() { return current; }` and `set_var_<name>(v) { current = v; }` |
 
-The project's `CLAUDE.md` should call out the "never edit `main/ui/`" rule and the "edit in EEZ Studio, ask user to re-export" workflow — copy from Fireside's `CLAUDE.md` as a template.
+The project's `CLAUDE.md` should call out the "never edit `main/ui/`" rule and the "edit in EEZ Studio, ask user to re-export" workflow — see the template below.
 
 ## Project CLAUDE.md addition
 
@@ -2022,7 +2018,7 @@ implemented in C and selected via `userData` on the event handler.
 | `undefined reference to objects` / `action_X` at link time | EEZ Studio Build hasn't run since the .eez-project changed | Open project in EEZ Studio → Build (Ctrl+B), then `idf.py build`. Guard C source with `#if __has_include("ui/screens.h")` to keep the project buildable in between |
 | `undefined reference to objects` / `action_X` at link time, exports DO exist in `main/ui/` | `main/CMakeLists.txt` doesn't list `ui/*.c` in `SRCS` | Add `ui/screens.c`, `ui/styles.c`, `ui/images.c`, `ui/ui.c` (and any `ui/ui_font_*.c`, `ui/ui_image_*.c` per asset) to the SRCS block |
 | `undefined reference to img_<name>` at link time | EEZ Studio is set to **source-mode** bitmap export (the default for LVGL projects). That emits `main/ui/ui_image_<name>.c` containing the bitmap data — but the export does NOT auto-register the new file in `main/CMakeLists.txt`. The next `idf.py build` then compiles `screens.c` (which references `img_<name>`) but never compiles the `.c` file that defines it. | Add `"ui/ui_image_<name>.c"` to the SRCS block, alongside the existing `ui_font_*.c` entries. This is the exact bitmap analog of the per-font SRCS entries — every bitmap registered in the .eez-project needs its matching `ui_image_*.c` listed in SRCS. **Whenever you add a bitmap to the project (whether via the GUI or a patch script), tell the user to add the corresponding `ui/ui_image_<name>.c` line to `main/CMakeLists.txt` before the next firmware build.** |
-| `ui.h:NN: 'undefined' before 'void'` compile error inside the export | EEZ Studio could not substitute a template placeholder like `${eez-studio GUI_ASSETS_DECL}` and emitted the literal word `undefined` | Compare your `settings.build.files[].template` strings against Fireside's exactly — small wording differences (`LVGL_UI_DECL` vs `GUI_ASSETS_DECL`) prevent substitution. Update the generator and ask the user to re-export |
+| `ui.h:NN: 'undefined' before 'void'` compile error inside the export | EEZ Studio could not substitute a template placeholder like `${eez-studio GUI_ASSETS_DECL}` and emitted the literal word `undefined` | Compare your `settings.build.files[].template` strings exactly against a project EEZ Studio created itself — small wording differences (`LVGL_UI_DECL` vs `GUI_ASSETS_DECL`) prevent substitution. Update the generator and ask the user to re-export |
 | `'ui_font_<name>' undeclared` in `styles.c`, or `undefined reference to ui_font_<name>` at link | **First check the `styles.c` template** — EEZ Studio's default only `#include`s `styles.h`, so the `ui_font_*` externs in `fonts.h` are invisible. **Then check `embeddedFontFile` on every font in the `.eez-project`** — if any is `""`, EEZ Studio's Ctrl+B silently emits no `ui_font_*.c` for that entry. | (1) Override the `styles.c` template to also `#include "images.h"` + `#include "fonts.h"` (see Fonts section). (2) Populate every empty `embeddedFontFile` with base64 of the source TTF/OTF (see Fonts section for the patch script), close and reopen the project in EEZ Studio, then Ctrl+B. **Do NOT run `lv_font_conv` yourself and do NOT write into `main/ui/` — that breaks the source-of-truth invariant.** |
 | `'ui_font_montserrat_<n>' undeclared (first use in this function); did you mean 'lv_font_montserrat_<n>'?` | A Montserrat size is registered as a custom font when it should be the LVGL built-in | Switch the `text_font` reference from lowercase `"montserrat_<n>"` to UPPERCASE `"MONTSERRAT_<n>"`, remove the entry from the `fonts[]` array, and enable `CONFIG_LV_FONT_MONTSERRAT_<n>=y` in `sdkconfig.defaults` (never `sdkconfig` — the build regenerates it) |
 | `fatal error: lvgl/lvgl.h: No such file or directory` in a `ui_font_*.c` | `lv_font_conv` was called with `--lv-include lvgl/lvgl.h`, but ESP-IDF's lvgl component exposes the header as plain `lvgl.h` | Use `--lv-include lvgl.h` and regenerate |
@@ -2041,7 +2037,7 @@ implemented in C and selected via `userData` on the event handler.
 - Don't put `useStyle` on LVGLScreenWidget. Don't put it on LVGLUserWidgetWidget either.
 - Don't set `useStyle: "default"` on any widget — it's not a valid style name.
 - Don't leave `pad_all > 0` on a parent style whose children are absolutely positioned — the parent content area shrinks by `pad_all` on each side and clips children flush to its edges.
-- Don't add fields you "think might be useful" — mirror a known-good sibling widget already rendering correctly in the project, or copy from a known-good reference (Fireside, Smart Home Low Res).
+- Don't add fields you "think might be useful" — mirror a known-good sibling widget already rendering correctly in the project, or copy from a known-good reference (e.g. EEZ's `Smart Home Low Res` example).
 - Don't mix `flowSupport: false` with action implementations in EEZ Studio — actions are just declarations.
 - Don't kick off `idf.py build` after editing the `.eez-project` without first asking the user to run EEZ Studio Build (Ctrl+B) — you'll chase phantom missing-symbol errors that only the export produces.
 - Don't iterate blind on layout problems — for the rare cases when you need to check before the user reloads, render the pages to PNG (`tmp/render_pages.py`) and Read the PNGs yourself. Otherwise, the user reloading EEZ Studio is the visual check.

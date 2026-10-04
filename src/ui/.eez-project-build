@@ -13,7 +13,6 @@
     "styles.h",
     "ui.c",
     "ui.h",
-    "ui_image_aa.c",
     "vars.h"
   ]
 }

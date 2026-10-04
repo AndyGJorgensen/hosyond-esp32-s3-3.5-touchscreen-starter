@@ -1,8 +1,10 @@
-#include "ota_manager.h"
+#include "managers/ota_manager.h"
 #include <Arduino.h>
 #include <ArduinoOTA.h>
 #include <WiFi.h>
 #include "app_config.h"
+
+OtaManager ota_manager;
 
 static bool s_enabled;
 static bool s_running;  // ArduinoOTA.begin() has been called
@@ -35,7 +37,9 @@ static void setup_callbacks() {
   });
 }
 
-void ota_set_enabled(bool enabled) {
+void OtaManager::begin() { set_enabled(OTA_ENABLED_DEFAULT); }
+
+void OtaManager::set_enabled(bool enabled) {
   s_enabled = enabled;
   if (!enabled && s_running) {
     ArduinoOTA.end();
@@ -44,11 +48,11 @@ void ota_set_enabled(bool enabled) {
   if (!enabled) strlcpy(s_status, "Off", sizeof(s_status));
 }
 
-bool ota_enabled() { return s_enabled; }
+bool OtaManager::enabled() const { return s_enabled; }
 
-void ota_set_progress_hook(void (*hook)()) { s_progress_hook = hook; }
+void OtaManager::set_progress_hook(void (*hook)()) { s_progress_hook = hook; }
 
-void ota_loop() {
+void OtaManager::loop() {
   if (!s_enabled) return;
   const bool wifi = WiFi.isConnected();
   if (wifi && !s_running) {
@@ -67,4 +71,4 @@ void ota_loop() {
   ArduinoOTA.handle();  // blocks for the whole update when one arrives
 }
 
-const char *ota_status_text() { return s_status; }
+const char *OtaManager::status_text() const { return s_status; }

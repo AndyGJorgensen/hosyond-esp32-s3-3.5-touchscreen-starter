@@ -8,3 +8,8 @@
 tmp/
 *.eez-project.bak*
 *.eez-project-ui-state
+
+# Vendor schematic/datasheets: not redistributable, download them yourself (see board/board.md)
+board/datasheets/
+*.pdf
+*.PDF

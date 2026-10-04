@@ -40,6 +40,14 @@ extern const char *get_var_saved_wifi_3();
 extern void set_var_saved_wifi_3(const char *value);
 extern bool get_var_wifi_connected();
 extern void set_var_wifi_connected(bool value);
+extern const char *get_var_sd_status();
+extern void set_var_sd_status(const char *value);
+extern int32_t get_var_mic_level();
+extern void set_var_mic_level(int32_t value);
+extern const char *get_var_battery_volts();
+extern void set_var_battery_volts(const char *value);
+extern const char *get_var_sd_space();
+extern void set_var_sd_space(const char *value);
 
 #ifdef __cplusplus
 }
